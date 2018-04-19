@@ -3,8 +3,6 @@
 require "sexp"
 require "ruby_parser/legacy/ruby_lexer"
 require "timeout"
-require "ruby_parser/legacy/rp_extensions"
-require "ruby_parser/legacy/rp_stringscanner"
 
 module LegacyRubyParserStuff
   VERSION = "3.10.1"
@@ -336,7 +334,7 @@ module LegacyRubyParserStuff
 
     v = self.class.name[/1[89]|2[01]/]
 
-    self.lexer = RubyLexer.new v && v.to_i
+    self.lexer = RubyParserLegacy::RubyLexer.new v && v.to_i
     self.lexer.parser = self
 
     @env = LegacyRubyParserStuff::Environment.new

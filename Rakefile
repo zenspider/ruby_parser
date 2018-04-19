@@ -35,7 +35,7 @@ Hoe.spec "ruby_parser_legacy" do
 
   if plugin?(:racc)
     self.racc_flags << " -t" if ENV["DEBUG"]
-    self.racc_flags << " --superclass RubyParser::Parser"
+    self.racc_flags << " --superclass RubyParser::LegacyParser"
     # self.racc_flags << " --runtime ruby_parser" # TODO: broken in racc
   end
 end
