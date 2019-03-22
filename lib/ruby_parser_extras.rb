@@ -1254,7 +1254,10 @@ module RubyParserStuff
                 ["__FILE__", [:k__FILE__, :k__FILE__   ], :expr_end   ],
                 ["__LINE__", [:k__LINE__, :k__LINE__   ], :expr_end   ],
                 ["__ENCODING__", [:k__ENCODING__, :k__ENCODING__], :expr_end],
-               ].map { |args| KWtable.new(*args) }
+               ].map { |args|
+      args[-1] = RubyLexer::STATES[args[-1]]
+      KWtable.new(*args)
+    }
 
     # :startdoc:
 

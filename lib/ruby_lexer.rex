@@ -30,7 +30,7 @@ start
   self.cmd_state = self.command_start
   self.command_start = false
   self.space_seen    = false # TODO: rename token_seen?
-  self.last_state    = rex_state
+  self.last_state    = lex_state
 
 rule
 
@@ -44,18 +44,18 @@ rule
                 /[\]\)\}]/              process_brace_close
 
 : /\!/
-| in_arg_state? /\!\@/                  { result :expr_arg, :tUBANG, "!@" }
-|               /\![=~]?/               { result :arg_state, TOKENS[text], text }
+| in_arg_state? /\!\@/                  { result EXPR_ARG, :tUBANG, "!@" }
+|               /\![=~]?/               { result ARG_STATE, TOKENS[text], text }
 
 : /\./
-|               /\.\.\.?/               { result :expr_beg, TOKENS[text], text }
+|               /\.\.\.?/               { result EXPR_BEG, TOKENS[text], text }
 |               /\.\d/                  { rb_compile_error "no .<digit> floating literal anymore put 0 before dot" }
-|               /\./                    { self.lex_state = :expr_beg; result :expr_dot, :tDOT, "." }
+|               /\./                    { self.lex_state = EXPR_BEG; result EXPR_DOT, :tDOT, "." }
 
                 /\(/                    process_paren
 
 # TODO: :expr_beg|:expr_label
-                /\,/                    { result :expr_beg, TOKENS[text], text }
+                /\,/                    { result EXPR_BEG, TOKENS[text], text }
 
 : /=/
 |               /\=\=\=|\=\=|\=~|\=>|\=(?!begin\b)/ { result arg_state, TOKENS[text], text }
@@ -63,7 +63,7 @@ rule
 |               /\=(?=begin\b)/         { result arg_state, TOKENS[text], text }
 
 ruby22_label?   /\"#{SIMPLE_STRING}\":/o process_label
-                /\"(#{SIMPLE_STRING})\"/o { result :expr_end, :tSTRING, text[1..-2].gsub(ESC) { unescape $1 } }
+                /\"(#{SIMPLE_STRING})\"/o { result EXPR_END, :tSTRING, text[1..-2].gsub(ESC) { unescape $1 } }
                 /\"/                    { string STR_DQUOTE; result nil, :tSTRING_BEG, text }
 
                 /\@\@?\d/               { rb_compile_error "`#{text}` is not allowed as a variable name" }
@@ -76,7 +76,7 @@ ruby22_label?   /\"#{SIMPLE_STRING}\":/o process_label
 |               /\:\:/                      process_colon2
 |               /\:/                        process_colon1
 
-                /->/                    { result :expr_endfn, :tLAMBDA, nil }
+                /->/                    { result EXPR_ENDFN, :tLAMBDA, nil }
 
                 /[+-]/                  process_plus_minus
 
@@ -97,58 +97,58 @@ ruby22_label?   /\"#{SIMPLE_STRING}\":/o process_label
 was_label?        /\'#{SSTRING}\':?/o   process_label_or_string
 
 : /\|/
-|               /\|\|\=/                { result :expr_beg, :tOP_ASGN, "||" }
-|               /\|\|/                  { result :expr_beg, :tOROP,    "||" }
-|               /\|\=/                  { result :expr_beg, :tOP_ASGN, "|" }
-|               /\|/                    { result :arg_state, :tPIPE,    "|" }
+|               /\|\|\=/                { result EXPR_BEG, :tOP_ASGN, "||" }
+|               /\|\|/                  { result EXPR_BEG, :tOROP,    "||" }
+|               /\|\=/                  { result EXPR_BEG, :tOP_ASGN, "|" }
+|               /\|/                    { result ARG_STATE, :tPIPE,    "|" }
 
                 /\{/                    process_brace_open
 
 : /\*/
-|               /\*\*=/                 { result :expr_beg, :tOP_ASGN, "**" }
-|               /\*\*/                  { result(:arg_state, space_vs_beginning(:tDSTAR, :tDSTAR, :tPOW), "**") }
-|               /\*\=/                  { result(:expr_beg, :tOP_ASGN, "*") }
-|               /\*/                    { result(:arg_state, space_vs_beginning(:tSTAR, :tSTAR, :tSTAR2), "*") }
+|               /\*\*=/                 { result EXPR_BEG, :tOP_ASGN, "**" }
+|               /\*\*/                  { result(ARG_STATE, space_vs_beginning(:tDSTAR, :tDSTAR, :tPOW), "**") }
+|               /\*\=/                  { result(EXPR_BEG, :tOP_ASGN, "*") }
+|               /\*/                    { result(ARG_STATE, space_vs_beginning(:tSTAR, :tSTAR, :tSTAR2), "*") }
 
 # TODO: fix result+process_lchevron to set command_start = true
 : /</
-|               /\<\=\>/                { result :arg_state, :tCMP, "<=>"    }
-|               /\<\=/                  { result :arg_state, :tLEQ, "<="     }
-|               /\<\<\=/                { result :expr_beg,  :tOP_ASGN, "<<" }
+|               /\<\=\>/                { result ARG_STATE, :tCMP, "<=>"    }
+|               /\<\=/                  { result ARG_STATE, :tLEQ, "<="     }
+|               /\<\<\=/                { result EXPR_BEG,  :tOP_ASGN, "<<" }
 |               /\<\</                  process_lchevron
-|               /\</                    { result :arg_state, :tLT, "<"       }
+|               /\</                    { result ARG_STATE, :tLT, "<"       }
 
 : />/
-|               /\>\=/                  { result :arg_state, :tGEQ, ">="     }
-|               /\>\>=/                 { result :expr_beg,  :tOP_ASGN, ">>" }
-|               /\>\>/                  { result :arg_state, :tRSHFT, ">>"   }
-|               /\>/                    { result :arg_state, :tGT, ">"       }
+|               /\>\=/                  { result ARG_STATE, :tGEQ, ">="     }
+|               /\>\>=/                 { result EXPR_BEG,  :tOP_ASGN, ">>" }
+|               /\>\>/                  { result ARG_STATE, :tRSHFT, ">>"   }
+|               /\>/                    { result ARG_STATE, :tGT, ">"       }
 
 : /\`/
-| expr_fname?   /\`/                   { result(:expr_end, :tBACK_REF2, "`") }
-| expr_dot?     /\`/                   { result((cmd_state ? :expr_cmdarg : :expr_arg), :tBACK_REF2, "`") }
+| expr_fname?   /\`/                   { result(EXPR_END, :tBACK_REF2, "`") }
+| expr_dot?     /\`/                   { result((cmd_state ? EXPR_CMDARG : EXPR_ARG), :tBACK_REF2, "`") }
 |               /\`/                   { string STR_XQUOTE, '`'; result(nil, :tXSTRING_BEG, "`") }
 
                 /\?/                    process_questionmark
 
 : /&/
-|               /\&\&\=/                { result(:expr_beg, :tOP_ASGN, "&&") }
-|               /\&\&/                  { result(:expr_beg, :tANDOP,   "&&") }
-|               /\&\=/                  { result(:expr_beg, :tOP_ASGN, "&" ) }
-|               /\&\./                  { result(:expr_dot, :tLONELY,  "&.") }
+|               /\&\&\=/                { result(EXPR_BEG, :tOP_ASGN, "&&") }
+|               /\&\&/                  { result(EXPR_BEG, :tANDOP,   "&&") }
+|               /\&\=/                  { result(EXPR_BEG, :tOP_ASGN, "&" ) }
+|               /\&\./                  { result(EXPR_DOT, :tLONELY,  "&.") }
 |               /\&/                    process_amper
 
                 /\//                    process_slash
 
 : /\^/
-|               /\^=/                   { result(:expr_beg, :tOP_ASGN, "^") }
-|               /\^/                    { result(:arg_state, :tCARET, "^") }
+|               /\^=/                   { result(EXPR_BEG, :tOP_ASGN, "^") }
+|               /\^/                    { result(ARG_STATE, :tCARET, "^") }
 
-                /\;/                    { self.command_start = true; result(:expr_beg, :tSEMI, ";") }
+                /\;/                    { self.command_start = true; result(EXPR_BEG, :tSEMI, ";") }
 
 : /~/
-| in_arg_state? /\~@/                   { result(:arg_state, :tTILDE, "~") }
-|               /\~/                    { result(:arg_state, :tTILDE, "~") }
+| in_arg_state? /\~@/                   { result(ARG_STATE, :tTILDE, "~") }
+|               /\~/                    { result(ARG_STATE, :tTILDE, "~") }
 
 : /\\/
 |               /\\\r?\n/               { self.lineno += 1; self.space_seen = true; next }

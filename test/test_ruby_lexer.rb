@@ -6,13 +6,15 @@ require "ruby_lexer"
 require "ruby_parser"
 
 class TestRubyLexer < Minitest::Test
+  include RubyLexer::Expr
+
   attr_accessor :processor, :lex, :parser_class, :lex_state
 
   alias :lexer :lex # lets me copy/paste code from parser
   alias :lexer= :lex=
 
   def setup
-    self.lex_state = :expr_beg
+    self.lex_state = EXPR_BEG
     setup_lexer_class RubyParser.latest.class
   end
 
@@ -69,7 +71,7 @@ class TestRubyLexer < Minitest::Test
   end
 
   def assert_next_lexeme token=nil, value=nil, state=nil, paren=nil, brace=nil
-    # state = RubyLexer::State.new state if state
+    state = RubyLexer::State.new state if state
 
     adv = @lex.next_token
 
@@ -95,7 +97,7 @@ class TestRubyLexer < Minitest::Test
     else
       assert_equal value, act_value,       msg
     end
-    assert_equal state, @lex.rex_state,  msg if state
+    assert_equal state, @lex.lex_state,  msg if state
     assert_equal paren, @lex.paren_nest, msg if paren
     assert_equal brace, @lex.brace_nest, msg if brace
   end
@@ -135,15 +137,15 @@ class TestRubyLexer < Minitest::Test
     lexer.cmdarg.push false
 
     lexer.lex_strterm = nil
-    lexer.lex_state = :expr_beg
+    lexer.lex_state = EXPR_BEG
 
     yield
 
-    lexer.lex_state = :expr_endarg
+    lexer.lex_state = EXPR_ENDARG
     assert_next_lexeme :tSTRING_DEND, "}",  :expr_endarg, 0
 
     lexer.lex_strterm = lex_strterm
-    lexer.lex_state   = :expr_beg
+    lexer.lex_state   = EXPR_BEG
     lexer.string_nest = string_nest
     lexer.brace_nest  = brace_nest
 
@@ -273,7 +275,7 @@ class TestRubyLexer < Minitest::Test
   end
 
   def test_yylex_and_arg
-    self.lex_state = :expr_arg
+    self.lex_state = EXPR_ARG
 
     assert_lex3(" &y",
                 nil,
@@ -286,7 +288,7 @@ class TestRubyLexer < Minitest::Test
   end
 
   def test_yylex_and_expr
-    self.lex_state = :expr_arg
+    self.lex_state = EXPR_ARG
 
     assert_lex3("x & y",
                 nil,
@@ -647,14 +649,14 @@ class TestRubyLexer < Minitest::Test
   end
 
   def test_yylex_backtick_cmdarg
-    self.lex_state = :expr_dot
+    self.lex_state = EXPR_DOT
 
     # \n ensures expr_cmd (TODO: why?)
     assert_lex3("\n`", nil, :tBACK_REF2, "`", :expr_cmdarg)
   end
 
   def test_yylex_backtick_dot
-    self.lex_state = :expr_dot
+    self.lex_state = EXPR_DOT
 
     assert_lex3("a.`(3)",
                 nil,
@@ -667,7 +669,7 @@ class TestRubyLexer < Minitest::Test
   end
 
   def test_yylex_backtick_method
-    self.lex_state = :expr_fname
+    self.lex_state = EXPR_FNAME
 
     assert_lex3("`",
                 nil,
@@ -838,7 +840,7 @@ class TestRubyLexer < Minitest::Test
   end
 
   def test_yylex_def_bad_name
-    self.lex_state = :expr_fname
+    self.lex_state = EXPR_FNAME
     refute_lex("def [ ", :kDEF, "def")
   end
 
@@ -868,7 +870,7 @@ class TestRubyLexer < Minitest::Test
   end
 
   def test_yylex_do_block
-    self.lex_state = :expr_endarg
+    self.lex_state = EXPR_ENDARG
 
     assert_lex3("x.y do 42 end",
                 nil,
@@ -883,7 +885,7 @@ class TestRubyLexer < Minitest::Test
   end
 
   def test_yylex_do_block2
-    self.lex_state = :expr_endarg
+    self.lex_state = EXPR_ENDARG
 
     assert_lex3("do 42 end",
                 nil,
@@ -1076,7 +1078,7 @@ class TestRubyLexer < Minitest::Test
   end
 
   def test_yylex_global_backref
-    self.lex_state = :expr_fname
+    self.lex_state = EXPR_FNAME
 
     assert_lex3("$`", nil, :tGVAR, "$`", :expr_end)
   end
@@ -1090,13 +1092,13 @@ class TestRubyLexer < Minitest::Test
   end
 
   def test_yylex_global_number
-    self.lex_state = :expr_fname
+    self.lex_state = EXPR_FNAME
 
     assert_lex3("$1", nil, :tGVAR, "$1", :expr_end)
   end
 
   def test_yylex_global_number_big
-    self.lex_state = :expr_fname
+    self.lex_state = EXPR_FNAME
 
     assert_lex3("$1234", nil, :tGVAR, "$1234", :expr_end)
   end
@@ -1428,7 +1430,7 @@ class TestRubyLexer < Minitest::Test
   end
 
   def test_yylex_identifier_equals_expr
-    self.lex_state = :expr_dot
+    self.lex_state = EXPR_DOT
     assert_lex3("y = arg",
                 nil,
                 :tIDENTIFIER, "y",   :expr_cmdarg,
@@ -1445,7 +1447,7 @@ class TestRubyLexer < Minitest::Test
   end
 
   def test_yylex_identifier_equals_tilde
-    self.lex_state = :expr_fname # can only set via parser's defs
+    self.lex_state = EXPR_FNAME # can only set via parser's defs
 
     assert_lex3("identifier=~",
                 nil,
@@ -1625,7 +1627,7 @@ class TestRubyLexer < Minitest::Test
   end
 
   def test_yylex_keyword_expr
-    self.lex_state = :expr_endarg
+    self.lex_state = EXPR_ENDARG
 
     assert_lex3("if", nil, :kIF_MOD, "if", :expr_beg)
   end
@@ -1667,13 +1669,13 @@ class TestRubyLexer < Minitest::Test
   end
 
   def test_yylex_minus_method
-    self.lex_state = :expr_fname
+    self.lex_state = EXPR_FNAME
 
     assert_lex3("-", nil, :tMINUS, "-", :expr_arg)
   end
 
   def test_yylex_minus_unary_method
-    self.lex_state = :expr_fname
+    self.lex_state = EXPR_FNAME
 
     assert_lex3("-@", nil, :tUMINUS, "-@", :expr_arg)
   end
@@ -1706,14 +1708,14 @@ class TestRubyLexer < Minitest::Test
   end
 
   def test_yylex_open_bracket_cmdarg
-    self.lex_state = :expr_cmdarg
+    self.lex_state = EXPR_CMDARG
 
     assert_lex3(" (", nil, :tLPAREN_ARG, "(", :expr_beg)
   end
 
   def test_yylex_open_bracket_exprarg__20
     setup_lexer_class RubyParser::V20
-    self.lex_state = :expr_arg
+    self.lex_state = EXPR_ARG
 
     assert_lex3(" (", nil, :tLPAREN_ARG, "(", :expr_beg)
   end
@@ -1723,7 +1725,7 @@ class TestRubyLexer < Minitest::Test
   end
 
   def test_yylex_open_curly_bracket_arg
-    self.lex_state = :expr_arg
+    self.lex_state = EXPR_ARG
 
     assert_lex3("m { 3 }",
                 nil,
@@ -1734,7 +1736,7 @@ class TestRubyLexer < Minitest::Test
   end
 
   def test_yylex_open_curly_bracket_block
-    self.lex_state = :expr_endarg # seen m(3)
+    self.lex_state = EXPR_ENDARG # seen m(3)
 
     assert_lex3("{ 4 }",
                 nil,
@@ -1744,7 +1746,7 @@ class TestRubyLexer < Minitest::Test
   end
 
   def test_yylex_open_square_bracket_arg
-    self.lex_state = :expr_arg
+    self.lex_state = EXPR_ARG
 
     assert_lex3("m [ 3 ]",
                 nil,
@@ -1818,19 +1820,19 @@ class TestRubyLexer < Minitest::Test
   end
 
   def test_yylex_plus_method
-    self.lex_state = :expr_fname
+    self.lex_state = EXPR_FNAME
 
     assert_lex3("+", nil, :tPLUS, "+", :expr_arg)
   end
 
   def test_yylex_plus_unary_method
-    self.lex_state = :expr_fname
+    self.lex_state = EXPR_FNAME
 
     assert_lex3("+@", nil, :tUPLUS, "+@", :expr_arg)
   end
 
   def test_yylex_not_unary_method
-    self.lex_state = :expr_fname
+    self.lex_state = EXPR_FNAME
 
     assert_lex3("!@", nil, :tUBANG, "!@", :expr_arg)
   end
@@ -2204,7 +2206,7 @@ class TestRubyLexer < Minitest::Test
   end
 
   def test_yylex_star_arg
-    self.lex_state = :expr_arg
+    self.lex_state = EXPR_ARG
 
     assert_lex3(" *a",
                 nil,
@@ -2213,7 +2215,7 @@ class TestRubyLexer < Minitest::Test
   end
 
   def test_yylex_star_arg_beg
-    self.lex_state = :expr_beg
+    self.lex_state = EXPR_BEG
 
     assert_lex3("*a",
                 nil,
@@ -2222,7 +2224,7 @@ class TestRubyLexer < Minitest::Test
   end
 
   def test_yylex_star_arg_beg_fname
-    self.lex_state = :expr_fname
+    self.lex_state = EXPR_FNAME
 
     assert_lex3("*a",
                 nil,
@@ -2231,7 +2233,7 @@ class TestRubyLexer < Minitest::Test
   end
 
   def test_yylex_star_arg_beg_fname2
-    self.lex_state = :expr_fname
+    self.lex_state = EXPR_FNAME
 
     assert_lex3("*a",
                 nil,
@@ -2702,7 +2704,7 @@ class TestRubyLexer < Minitest::Test
   end
 
   def test_yylex_tilde_unary
-    self.lex_state = :expr_fname
+    self.lex_state = EXPR_FNAME
 
     assert_lex3("~@", nil, :tTILDE, "~", :expr_arg)
   end

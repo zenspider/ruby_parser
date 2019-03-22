@@ -30,6 +30,16 @@ module TestRubyParserShared
 
   BLOCK_DUP_MSG = "Both block arg and actual block given."
 
+  def test_bug191
+    pt = s(:if, s(:call, nil, :a), s(:str, ""), s(:call, nil, :b))
+
+    rb = "a ? '': b"
+    assert_parse rb, pt
+
+    rb = "a ? \"\": b"
+    assert_parse rb, pt
+  end
+
   def test_double_block_error_01
     assert_syntax_error "a(1, &b) { }", BLOCK_DUP_MSG
   end
@@ -3341,16 +3351,6 @@ module TestRubyParserShared22Plus
     rb = 'x "#{k}":42'
     pt = s(:call, nil, :x, s(:hash, s(:dsym, "", s(:evstr, s(:call, nil, :k))), s(:lit, 42)))
 
-    assert_parse rb, pt
-  end
-
-  def test_bug191
-    pt = s(:if, s(:call, nil, :a), s(:str, ""), s(:call, nil, :b))
-
-    rb = "a ? '': b"
-    assert_parse rb, pt
-
-    rb = "a ? \"\": b"
     assert_parse rb, pt
   end
 
