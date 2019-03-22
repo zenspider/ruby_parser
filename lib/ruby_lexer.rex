@@ -30,7 +30,7 @@ start
   self.cmd_state = self.command_start
   self.command_start = false
   self.space_seen    = false # TODO: rename token_seen?
-  self.last_state    = lex_state
+  self.last_state    = rex_state
 
 rule
 

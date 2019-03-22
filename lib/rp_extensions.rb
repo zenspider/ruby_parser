@@ -33,8 +33,8 @@ class String
   attr_accessor :lineno
 
   def clean_caller
-    self.sub(File.dirname(__FILE__), ".").sub(/:in.*/, "")
-  end if $DEBUG
+    self.sub(File.dirname(__FILE__), "./lib").sub(/:in.*/, "")
+  end
 end
 
 require "sexp"

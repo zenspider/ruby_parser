@@ -2000,7 +2000,7 @@ regexp_contents: none
                                 lexer.string_nest, # TODO: remove
                                 lexer.cond.store,
                                 lexer.cmdarg.store,
-                                lexer.lex_state,
+                                lexer.rex_state,
                                ]
 
                       lexer.lex_strterm = nil

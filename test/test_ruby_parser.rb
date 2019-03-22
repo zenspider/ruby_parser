@@ -3669,6 +3669,18 @@ class RubyParserTestCase < ParseTreeTestCase
     assert_equal emsg, e.message
   end
 
+  def assert_silent
+    capture_io do
+      yield
+    end
+  end
+
+  def assert_output *_
+    capture_io do
+      yield
+    end
+  end
+
   def assert_parse_error rb, emsg
     e = nil
     assert_silent do

@@ -69,6 +69,8 @@ class TestRubyLexer < Minitest::Test
   end
 
   def assert_next_lexeme token=nil, value=nil, state=nil, paren=nil, brace=nil
+    # state = RubyLexer::State.new state if state
+
     adv = @lex.next_token
 
     assert adv, "no more tokens"
@@ -93,7 +95,7 @@ class TestRubyLexer < Minitest::Test
     else
       assert_equal value, act_value,       msg
     end
-    assert_equal state, @lex.lex_state,  msg if state
+    assert_equal state, @lex.rex_state,  msg if state
     assert_equal paren, @lex.paren_nest, msg if paren
     assert_equal brace, @lex.brace_nest, msg if brace
   end
