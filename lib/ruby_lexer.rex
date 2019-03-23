@@ -45,7 +45,7 @@ rule
 
 : /\!/
 | is_after_operator? /\!\@/             { result EXPR_ARG, :tUBANG, "!@" }
-|               /\![=~]?/               { result ARG_STATE, TOKENS[text], text }
+|               /\![=~]?/               { result :arg_state, TOKENS[text], text }
 
 : /\./
 |               /\.\.\.?/               { result EXPR_BEG, TOKENS[text], text }
@@ -55,7 +55,7 @@ rule
                 /\(/                    process_paren
 
 # TODO: :expr_beg|:expr_label
-                /\,/                    { result EXPR_BEG|EXPR_LABEL, TOKENS[text], text }
+                /\,/                    { result EXPR_PAR, TOKENS[text], text }
 
 : /=/
 |               /\=\=\=|\=\=|\=~|\=>|\=(?!begin\b)/ { result arg_state, TOKENS[text], text }
@@ -100,29 +100,29 @@ was_label?        /\'#{SSTRING}\':?/o   process_label_or_string
 |               /\|\|\=/                { result EXPR_BEG, :tOP_ASGN, "||" }
 |               /\|\|/                  { result EXPR_BEG, :tOROP,    "||" }
 |               /\|\=/                  { result EXPR_BEG, :tOP_ASGN, "|" }
-|               /\|/                    { state = is_after_operator? ? EXPR_ARG : EXPR_BEG|EXPR_LABEL; result state, :tPIPE, "|" }
+|               /\|/                    { state = is_after_operator? ? EXPR_ARG : EXPR_PAR; result state, :tPIPE, "|" }
 
                 /\{/                    process_brace_open
 
 : /\*/
 |               /\*\*=/                 { result EXPR_BEG, :tOP_ASGN, "**" }
-|               /\*\*/                  { result(ARG_STATE, space_vs_beginning(:tDSTAR, :tDSTAR, :tPOW), "**") }
+|               /\*\*/                  { result(:arg_state, space_vs_beginning(:tDSTAR, :tDSTAR, :tPOW), "**") }
 |               /\*\=/                  { result(EXPR_BEG, :tOP_ASGN, "*") }
-|               /\*/                    { result(ARG_STATE, space_vs_beginning(:tSTAR, :tSTAR, :tSTAR2), "*") }
+|               /\*/                    { result(:arg_state, space_vs_beginning(:tSTAR, :tSTAR, :tSTAR2), "*") }
 
 # TODO: fix result+process_lchevron to set command_start = true
 : /</
-|               /\<\=\>/                { result ARG_STATE, :tCMP, "<=>"    }
-|               /\<\=/                  { result ARG_STATE, :tLEQ, "<="     }
+|               /\<\=\>/                { result :arg_state, :tCMP, "<=>"    }
+|               /\<\=/                  { result :arg_state, :tLEQ, "<="     }
 |               /\<\<\=/                { result EXPR_BEG,  :tOP_ASGN, "<<" }
 |               /\<\</                  process_lchevron
-|               /\</                    { result ARG_STATE, :tLT, "<"       }
+|               /\</                    { result :arg_state, :tLT, "<"       }
 
 : />/
-|               /\>\=/                  { result ARG_STATE, :tGEQ, ">="     }
+|               /\>\=/                  { result :arg_state, :tGEQ, ">="     }
 |               /\>\>=/                 { result EXPR_BEG,  :tOP_ASGN, ">>" }
-|               /\>\>/                  { result ARG_STATE, :tRSHFT, ">>"   }
-|               /\>/                    { result ARG_STATE, :tGT, ">"       }
+|               /\>\>/                  { result :arg_state, :tRSHFT, ">>"   }
+|               /\>/                    { result :arg_state, :tGT, ">"       }
 
 : /\`/
 | expr_fname?   /\`/                   { result(EXPR_END, :tBACK_REF2, "`") }
@@ -142,13 +142,13 @@ was_label?        /\'#{SSTRING}\':?/o   process_label_or_string
 
 : /\^/
 |               /\^=/                   { result(EXPR_BEG, :tOP_ASGN, "^") }
-|               /\^/                    { result(ARG_STATE, :tCARET, "^") }
+|               /\^/                    { result(:arg_state, :tCARET, "^") }
 
                 /\;/                    { self.command_start = true; result(EXPR_BEG, :tSEMI, ";") }
 
 : /~/
-| is_after_operator? /\~@/              { result(ARG_STATE, :tTILDE, "~") }
-|               /\~/                    { result(ARG_STATE, :tTILDE, "~") }
+| is_after_operator? /\~@/              { result(:arg_state, :tTILDE, "~") }
+|               /\~/                    { result(:arg_state, :tTILDE, "~") }
 
 : /\\/
 |               /\\\r?\n/               { self.lineno += 1; self.space_seen = true; next }

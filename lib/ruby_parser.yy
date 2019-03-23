@@ -2573,7 +2573,7 @@ end
 
 require "ruby_lexer"
 require "ruby_parser_extras"
-include RubyLexer::Expr
+include RubyLexer::State::Values
 
 # :stopdoc:
 
