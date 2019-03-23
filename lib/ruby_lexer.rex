@@ -44,7 +44,7 @@ rule
                 /[\]\)\}]/              process_brace_close
 
 : /\!/
-| in_arg_state? /\!\@/                  { result EXPR_ARG, :tUBANG, "!@" }
+| is_after_operator? /\!\@/             { result EXPR_ARG, :tUBANG, "!@" }
 |               /\![=~]?/               { result ARG_STATE, TOKENS[text], text }
 
 : /\./
@@ -55,7 +55,7 @@ rule
                 /\(/                    process_paren
 
 # TODO: :expr_beg|:expr_label
-                /\,/                    { result EXPR_BEG, TOKENS[text], text }
+                /\,/                    { result EXPR_BEG|EXPR_LABEL, TOKENS[text], text }
 
 : /=/
 |               /\=\=\=|\=\=|\=~|\=>|\=(?!begin\b)/ { result arg_state, TOKENS[text], text }
@@ -100,7 +100,7 @@ was_label?        /\'#{SSTRING}\':?/o   process_label_or_string
 |               /\|\|\=/                { result EXPR_BEG, :tOP_ASGN, "||" }
 |               /\|\|/                  { result EXPR_BEG, :tOROP,    "||" }
 |               /\|\=/                  { result EXPR_BEG, :tOP_ASGN, "|" }
-|               /\|/                    { result ARG_STATE, :tPIPE,    "|" }
+|               /\|/                    { state = is_after_operator? ? EXPR_ARG : EXPR_BEG|EXPR_LABEL; result state, :tPIPE, "|" }
 
                 /\{/                    process_brace_open
 
@@ -147,7 +147,7 @@ was_label?        /\'#{SSTRING}\':?/o   process_label_or_string
                 /\;/                    { self.command_start = true; result(EXPR_BEG, :tSEMI, ";") }
 
 : /~/
-| in_arg_state? /\~@/                   { result(ARG_STATE, :tTILDE, "~") }
+| is_after_operator? /\~@/              { result(ARG_STATE, :tTILDE, "~") }
 |               /\~/                    { result(ARG_STATE, :tTILDE, "~") }
 
 : /\\/

@@ -2171,7 +2171,7 @@ keyword_variable: kNIL      { result = s(:nil)   }
                 |   {
                       result = self.in_kwarg
                       self.in_kwarg = true
-                      # TODO: self.lexer.lex_state |= EXPR_LABEL
+                      self.lexer.lex_state |= EXPR_LABEL
                     }
                     f_args term
                     {
