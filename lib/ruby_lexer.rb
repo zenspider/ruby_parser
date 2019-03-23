@@ -91,9 +91,6 @@ class RubyLexer
       case o
       when Integer then
         self.state = o
-      when Symbol then
-        raise "no"
-        self.state = STATES[o]
       when State then
         self.state = o.state
       else
@@ -105,9 +102,6 @@ class RubyLexer
       case o
       when Integer then
         self.state == o
-      when Symbol then
-        raise "no"
-        self.state == STATES[o]
       when State then
         self.state == o.state
       else
@@ -145,28 +139,12 @@ class RubyLexer
     end
   else
     def lex_state= o
-      if Symbol === o then
-        $stderr.puts
-        c = caller[0]
-        c = caller[1] if c =~ /\bresult\b/
-        $stderr.puts c.split.first.sub(WHERE, "./lib").sub(/:in.*/, "")
-      end
       @lex_state = State.new o
     end
   end
 
-  WHERE = File.dirname(__FILE__)
-
   def lex_state
-    # $stderr.puts
-    # $stderr.puts caller.first.split.first.sub(WHERE, "./lib").sub(/:in.*/, "")
     @lex_state
-  end
-
-  def rex_state
-    $stderr.puts
-    $stderr.puts caller.first.split.first.sub(WHERE, "./lib").sub(/:in.*/, "")
-    @lex_state.state
   end
 
   ESCAPES = {
@@ -437,17 +415,11 @@ class RubyLexer
   end
 
   def in_fname? # REFACTOR
-    in_lex_state? :expr_fname
+    lex_state =~ EXPR_FNAME
   end
 
   def is_after_operator?
-    in_lex_state? :expr_fname, :expr_dot
-  end
-
-  def in_lex_state?(*states)
-    # TODO: move to State
-    state = states.reduce(0) { |n, k| n | (Symbol === k ? STATES[k] : k) } # TODO: remove
-    lex_state =~ state
+    lex_state =~ EXPR_FNAME|EXPR_DOT
   end
 
   def int_with_base base
@@ -469,15 +441,15 @@ class RubyLexer
   end
 
   def is_arg?
-    in_lex_state?(*EXPR_ARG_ANY)
+    lex_state =~ EXPR_ARG_ANY
   end
 
   def is_beg?
-    in_lex_state?(*EXPR_BEG_ANY) || lex_state == EXPR_VALUE|EXPR_LABELED
+    lex_state =~ EXPR_BEG_ANY || lex_state == EXPR_VALUE|EXPR_LABELED
   end
 
   def is_end?
-    in_lex_state?(*EXPR_END_ANY)
+    lex_state =~ EXPR_END_ANY
   end
 
   def lvar_defined? id
@@ -486,13 +458,11 @@ class RubyLexer
   end
 
   def ruby22_label?
-    # p :ruby22_label? => [ruby22plus?, is_label_possible?, lex_state]
     ruby22plus? and is_label_possible?
   end
 
   def is_label_possible?
-    # TODO: expr_beg -> expr_label
-    (in_lex_state?(:expr_label, :expr_endfn) && !cmd_state) || is_arg?
+    (lex_state =~ EXPR_LABEL|EXPR_ENDFN && !cmd_state) || is_arg?
   end
 
   def is_label_suffix?
@@ -519,7 +489,7 @@ class RubyLexer
     token = if is_arg? && space_seen && !check(/\s/) then
                warning("`&' interpreted as argument prefix")
                :tAMPER
-             elsif in_lex_state? :expr_beg, :expr_mid then
+             elsif lex_state =~ EXPR_BEG|EXPR_MID then
                :tAMPER
              else
                :tAMPER2
@@ -590,7 +560,7 @@ class RubyLexer
   end
 
   def process_colon2 text
-    if is_beg? || in_lex_state?(:expr_class) || is_space_arg? then
+    if is_beg? || lex_state =~ EXPR_CLASS || is_space_arg? then
       result EXPR_BEG, :tCOLON3, text
     else
       result EXPR_DOT, :tCOLON2, text
@@ -609,11 +579,11 @@ class RubyLexer
     end
 
     token = case
-            when in_lex_state?(EXPR_LABELED) then
+            when lex_state =~ EXPR_LABELED then
               :tLBRACE     # hash
-            when in_lex_state?(EXPR_ARG_ANY|EXPR_END|EXPR_ENDFN) then
+            when lex_state =~ EXPR_ARG_ANY|EXPR_END|EXPR_ENDFN then
               :tLCURLY     # block (primary) '{' in parse.y
-            when in_lex_state?(EXPR_ENDARG) then
+            when lex_state =~ EXPR_ENDARG then
               :tLBRACE_ARG # block (expr)
             else
               :tLBRACE     # hash
@@ -661,9 +631,9 @@ class RubyLexer
   end
 
   def process_lchevron text
-    if (!in_lex_state?(:expr_dot, :expr_class) &&
+    if (lex_state !~ EXPR_DOT|EXPR_CLASS &&
         !is_end? &&
-        (!is_arg? || in_lex_state?(:expr_labeled) || space_seen)) then
+        (!is_arg? || lex_state =~ EXPR_LABELED || space_seen)) then
       tok = self.heredoc_identifier
       return tok if tok
     end
@@ -700,10 +670,8 @@ class RubyLexer
     # Replace a string of newlines with a single one
     self.lineno += matched.lines.to_a.size if scan(/\n+/)
 
-    # TODO: remove :expr_value -- audit all uses of it
-    c = in_lex_state?(:expr_beg, :expr_value, :expr_class,
-                      :expr_fname, :expr_dot) && !in_lex_state?(:expr_labeled)
-
+    c = (lex_state =~ EXPR_BEG|EXPR_CLASS|EXPR_FNAME|EXPR_DOT &&
+         lex_state !~ EXPR_LABELED)
     # TODO: figure out what token_seen is for
     if c || self.lex_state == EXPR_BEG|EXPR_LABELED then
       # ignore if !fallthrough?
@@ -735,21 +703,25 @@ class RubyLexer
   def process_paren text
     token = if is_beg? then
               :tLPAREN
+            elsif !space_seen then
+              # foo( ... ) => method call, no ambiguity
+              :tLPAREN2
             elsif is_space_arg? then
               :tLPAREN_ARG
+            elsif lex_state =~ EXPR_ENDFN && !lambda_beginning? then
+              # TODO:
+              # warn("parentheses after method name is interpreted as " \
+              #      "an argument list, not a decomposed argument")
+              :tLPAREN2
             else
               :tLPAREN2 # plain '(' in parse.y
             end
 
     self.paren_nest += 1
 
-    # TODO: add :expr_label to :expr_beg (set in expr_result below)
     cond.push false
     cmdarg.push false
     result EXPR_BEG|EXPR_LABEL, token, text
-
-
-    # return expr_result(token, "(")
   end
 
   def process_percent text
@@ -870,9 +842,9 @@ class RubyLexer
       else
         rb_compile_error "unexpected '['"
       end
-    elsif is_beg? # || in_lex_state?(:expr_label) then # HACK :expr_label
+    elsif is_beg? then
       token = :tLBRACK
-    elsif is_arg? && (space_seen || in_lex_state?(:expr_labeled))
+    elsif is_arg? && (space_seen || lex_state =~ EXPR_LABELED) then
       token = :tLBRACK
     else
       token = :tLBRACK2
@@ -934,7 +906,7 @@ class RubyLexer
       case
       when token =~ /[!?]$/ then
         :tFID
-      when in_lex_state?(:expr_fname) && scan(/=(?:(?![~>=])|(?==>))/) then
+      when lex_state =~ EXPR_FNAME && scan(/=(?:(?![~>=])|(?==>))/) then
         # ident=, not =~ => == or followed by =>
         # TODO test lexing of a=>b vs a==>b
         token << matched
@@ -950,18 +922,18 @@ class RubyLexer
       return result EXPR_ARG|EXPR_LABELED, :tLABEL, [token, self.lineno]
     end
 
-    # TODO: mb == ENC_CODERANGE_7BIT && !in_lex_state?(:expr_dot)
-    unless in_lex_state? :expr_dot then
+    # TODO: mb == ENC_CODERANGE_7BIT && lex_state !~ EXPR_DOT
+    if lex_state !~ EXPR_DOT then
       # See if it is a reserved word.
       keyword = RubyParserStuff::Keyword.keyword token
 
       return process_token_keyword keyword if keyword
-    end # unless in_lex_state? :expr_dot
+    end
 
     # matching: compare/parse23.y:8079
-    state = if is_beg? or is_arg? or in_lex_state? :expr_dot then
+    state = if is_beg? or is_arg? or lex_state =~ EXPR_DOT then
               cmd_state ? EXPR_CMDARG : EXPR_ARG
-            elsif in_lex_state? :expr_fname then
+            elsif lex_state =~ EXPR_FNAME then
               EXPR_ENDFN
             else
               EXPR_END
@@ -987,7 +959,7 @@ class RubyLexer
 
     return result(lex_state, keyword.id0, value) if state == EXPR_FNAME
 
-    self.command_start = true if in_lex_state? :expr_beg
+    self.command_start = true if lex_state =~ EXPR_BEG
 
     case
     when keyword.id0 == :kDO then
@@ -1345,7 +1317,7 @@ class RubyLexer
 
     # matches parser_string_term
     if ruby22plus? && token_type == :tSTRING_END && ["'", '"'].include?(c) then
-      if ((in_lex_state?(:expr_beg, :expr_endfn) &&
+      if ((lex_state =~ EXPR_BEG|EXPR_ENDFN &&
            !cond.is_in_state) || is_arg?) &&
           is_label_suffix? then
         scan(/:/)
