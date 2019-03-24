@@ -653,10 +653,11 @@ class RubyLexer
     c = (lex_state =~ EXPR_BEG|EXPR_CLASS|EXPR_FNAME|EXPR_DOT &&
          lex_state !~ EXPR_LABELED)
     # TODO: figure out what token_seen is for
-    if c || self.lex_state == EXPR_PAD then
+    if c || self.lex_state == EXPR_LAB then
       # ignore if !fallthrough?
       if !c && parser.in_kwarg then
         # normal newline
+        self.command_start = true
         return result EXPR_BEG, :tNL, nil
       else
         return # skip

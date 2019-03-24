@@ -2850,7 +2850,6 @@ class TestRubyLexer < Minitest::Test
                 :tLABEL,      "a",    EXPR_LAB,
                 :tCOMMA,      ",",    EXPR_PAR,
                 :tLABEL,      "b",    EXPR_LAB,
-                :tNL,         nil,    EXPR_BEG, # HACK? I can't tell
                 :kEND,        "end", EXPR_END)
   end
 
