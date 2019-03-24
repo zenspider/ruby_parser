@@ -724,8 +724,6 @@ module TestRubyParserShared
   end
 
   def test_parse_line_dstr_newline
-    skip "dstr line numbers are just gonna be screwed for a while..."
-
     rb = <<-'CODE'
             "a\n#{
             }"
@@ -2583,10 +2581,8 @@ module TestRubyParserShared19Plus
   end
 
   def test_pipe_semicolon
-    skip "not yet"
-
     rb = "a.b do | ; c | end"
-    pt = s(:iter, s(:call, s(:call, nil, :a), :b), 0)
+    pt = s(:iter, s(:call, s(:call, nil, :a), :b), s(:args, s(:shadow, :c)))
 
     assert_parse rb, pt
   end
@@ -2694,10 +2690,13 @@ module TestRubyParserShared19Plus
   end
 
   def test_kill_me5
-    skip "not yet"
-
     rb = "f ->() { g do end }"
-    pt = 42
+    pt = s(:call, nil, :f,
+           s(:iter,
+             s(:call, nil, :lambda),
+             s(:args),
+             s(:iter, s(:call, nil, :g), 0)))
+
 
     assert_parse rb, pt
   end
@@ -2710,8 +2709,6 @@ module TestRubyParserShared19Plus
   end
 
   def test_iter_args_5
-    skip "not yet"
-
     rb = "f { |a, &b| }"
     pt = s(:iter, s(:call, nil, :f), s(:args, :a, :"&b"))
 
@@ -3310,8 +3307,6 @@ module TestRubyParserShared21Plus
   end
 
   def test_parse_line_heredoc_hardnewline
-    skip "not yet"
-
     rb = <<-'CODE'.gsub(/^      /, '')
       <<-EOFOO
       \n\n\n\n\n\n\n\n\n

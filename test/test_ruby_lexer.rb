@@ -2935,24 +2935,16 @@ class TestRubyLexer < Minitest::Test
   end
 
   def test_ruby21_imaginary_literal_with_succeeding_keyword
-    # TODO: audit current skips
-    skip "Currently does not tokenize correctly"
-
     setup_lexer_class RubyParser::V21
 
-    assert_lex3("1if", nil,
-                :tINTEGER, 1,     EXPR_NUM,
-                :kIF_MOD,  "if", EXPR_BEG)
-    assert_lex3("1rif", nil,
-                :tRATIONAL, Rational(1), EXPR_END,
-                :kIF_MOD,   "if",        EXPR_BEG)
-    assert_lex3("1.0if", nil,
-                :tFLOAT,  1.0,  EXPR_END,
-                :kIF_MOD, "if", EXPR_BEG)
-    assert_lex3("1.0rif", nil,
-                :tRATIONAL, Rational("1.0"), EXPR_END,
-                :kIF_MOD,   "if",            EXPR_BEG)
+    # 2/4 scenarios are syntax errors on all tested versions so I
+    # deleted them.
 
-    flunk
+    assert_lex3("1if", nil,
+                :tINTEGER, 1,    EXPR_NUM,
+                :kIF_MOD,  "if", EXPR_PAR)
+    assert_lex3("1.0if", nil,
+                :tFLOAT,  1.0,  EXPR_NUM,
+                :kIF_MOD, "if", EXPR_PAR)
   end
 end
